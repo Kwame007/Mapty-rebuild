@@ -15,6 +15,7 @@ class Workout {
   // date created
   date = new Date();
   id = (Date.now() + "").slice(-10);
+  clicks = 0;
 
   constructor(coords, distance, duration) {
     /*
@@ -27,6 +28,10 @@ class Workout {
     this.coords = coords; //[lon,lat]
     this.distance = distance; //in km
     this.duration = duration; //in min
+  }
+  //increase number of clicks
+  _click() {
+    this.clicks++;
   }
 
   _setDescription() {
@@ -82,10 +87,13 @@ class Cycling extends Workout {
 class App {
   // private class fields
   #map;
+  #mapZoomLevel = 13;
   #mapEvent;
   #workouts = [];
 
   constructor() {
+    // get data from local storage
+    this._getLocalStorage();
     // get current position
     this._getPosition();
 
@@ -94,6 +102,9 @@ class App {
 
     // change event on input
     inputType.addEventListener("change", this._toggleElevationField);
+
+    // move map to event
+    containerWorkouts.addEventListener("click", this._moveToPopup.bind(this));
   }
 
   // methods
@@ -113,7 +124,7 @@ class App {
     const coords = [latitude, longitude];
 
     // draw map
-    this.#map = L.map("map").setView(coords, 13);
+    this.#map = L.map("map").setView(coords, this.#mapZoomLevel);
 
     L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
       attribution:
@@ -122,11 +133,15 @@ class App {
 
     // map event : handling click on map
     this.#map.on("click", this._showForm.bind(this));
+
+    // render marker
+    this.#workouts.forEach((workout) => {
+      this._renderWorkoutMarker(workout);
+    });
   }
 
   _showForm(mapE) {
     this.#mapEvent = mapE;
-    console.log(this.#mapEvent);
 
     // show workout form
     form.classList.remove("hidden");
@@ -203,7 +218,6 @@ class App {
     // add new object to workout array
     // push workouts to array
     this.#workouts.push(workout);
-    console.log(this.#workouts);
 
     // render workout on map as marker
     this._renderWorkoutMarker(workout);
@@ -212,9 +226,11 @@ class App {
     this._renderWorkout(workout);
 
     // hide form + clear input fields
-
     // clear workout form (input)
     this._hideForm();
+
+    // set locale storage
+    this._setLocaleStorage();
   }
 
   _renderWorkoutMarker(workout) {
@@ -288,6 +304,70 @@ class App {
     // insert html
     form.insertAdjacentHTML("afterend", html);
   }
+
+  _moveToPopup(e) {
+    // get parent element of target
+    const workoutEl = e.target.closest(".workout");
+
+    if (!workoutEl) return;
+
+    // get workout data
+    const workout = this.#workouts.find(
+      (workout) => workout.id === workoutEl.dataset.id
+    );
+
+    // move to map
+    this.#map.setView(workout.coords, this.#mapZoomLevel, {
+      animate: true,
+      pan: {
+        duration: 1,
+      },
+    });
+    // using the public interface example
+    // workout._click();
+  }
+  _setLocaleStorage() {
+    localStorage.setItem("workout", JSON.stringify(this.#workouts));
+  }
+  _getLocalStorage() {
+    const data = JSON.parse(localStorage.getItem("workout"));
+
+    // check if no data
+    if (!data) return;
+
+    // render workouts
+
+    // data.forEach((workout) => {
+    //   this._renderWorkout(workout);
+    //   this._renderWorkoutMarker(workout);
+    // });
+
+    // set workouts array to data
+    this.#workouts = data;
+
+    this.#workouts.forEach((workout) => {
+      this._renderWorkout(workout);
+    });
+  }
 }
 
 const app = new App();
+
+/*
+
+TODO: DELETE WORKOUT ELEMENT FEATURE
+TODO: FILTER WORKOUT FEATURE (BY CERTAIN FIELDS)
+TODO: EDIT WORKOUT
+TODO: DELETE ALL WORK OUTS
+TODO: FIX OBJECT PROBLEM (BUILD NEW RUNNING AND CYCLING CLASS WITH OBJECT FROM LOCAL STORAGE)
+TODO: CREATE MORE REALISTIC ERROR AND CONFIRMATION MESSAGES
+
+
+//TOUGH
+TODO: POSITION MAP TO SHOW ALL WORKOUTS
+TODO: GEOLOCATION
+TODO: DISPLAY WEATHER DATA FOR WORKOUT DATE AND TIME
+TODO: DRAW LINES AND SHAPE USING LEAFLET
+
+
+*/
